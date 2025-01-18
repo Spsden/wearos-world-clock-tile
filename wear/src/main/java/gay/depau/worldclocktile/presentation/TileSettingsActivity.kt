@@ -5,10 +5,13 @@ package gay.depau.worldclocktile.presentation
 
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.spring
@@ -40,9 +43,11 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.internal.composableLambda
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
@@ -78,6 +83,7 @@ import androidx.wear.compose.navigation.composable
 import androidx.wear.compose.navigation.rememberSwipeDismissableNavController
 import androidx.wear.tiles.TileService
 import androidx.wear.tooling.preview.devices.WearDevices
+import com.google.android.horologist.compose.snackbar.SnackbarHostState
 import gay.depau.worldclocktile.R
 import gay.depau.worldclocktile.WorldClockTileService
 import gay.depau.worldclocktile.composables.MainView
@@ -89,12 +95,14 @@ import gay.depau.worldclocktile.presentation.theme.themedChipColors
 import gay.depau.worldclocktile.presentation.theme.toggleChipColors
 import gay.depau.worldclocktile.presentation.viewmodels.TileSettingsViewModel
 import gay.depau.worldclocktile.presentation.views.AboutView
+import gay.depau.worldclocktile.presentation.views.FilePickerView
 import gay.depau.worldclocktile.shared.MAX_TILE_ID
 import gay.depau.worldclocktile.shared.TileSettings
 import gay.depau.worldclocktile.shared.tzdb.DbLessSampleDataDao
 import gay.depau.worldclocktile.shared.tzdb.TimezoneDatabase
 import gay.depau.worldclocktile.shared.tzdb.populateWithSampleData
 import gay.depau.worldclocktile.shared.utils.ColorScheme
+import gay.depau.worldclocktile.shared.utils.GetCustomContents
 import gay.depau.worldclocktile.shared.utils.PreviewContextWrapper
 import gay.depau.worldclocktile.shared.utils.composeColor
 import gay.depau.worldclocktile.shared.utils.currentTimeAt
@@ -104,12 +112,14 @@ import gay.depau.worldclocktile.shared.utils.timezoneOffsetDescription
 import gay.depau.worldclocktile.shared.utils.timezoneSimpleNames
 import gay.depau.worldclocktile.shared.viewmodels.TileSettingsState
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import java.util.TimeZone
 import kotlin.properties.Delegates
+
 
 class TileSettingsActivity : ComponentActivity() {
     private val mViewModel: TileSettingsViewModel by viewModels { TileSettingsViewModel.Factory }
@@ -173,7 +183,11 @@ class TileSettingsActivity : ComponentActivity() {
                         queryStartTime = System.currentTimeMillis()
                     }, openAbout = { navController.navigate("about") },
                         openTileManagement = { goToManagementActivityAndClose() },
-                        renameCity = { mSettings.cityName = it })
+                        renameCity = { mSettings.cityName = it },
+                        openFilePicker = {navController.navigate("select_image")})
+                }
+                composable("select_image"){
+                    FilePickerView()
                 }
                 composable("select_color") {
                     ColorSelectionView(
@@ -354,16 +368,21 @@ fun MainSettingsView(
     set24Hour: (Boolean) -> Unit,
     openColorSelection: () -> Unit,
     openTimeZoneSelection: () -> Unit,
-    openAbout: () -> Unit,
+    openFilePicker: () -> Unit,
     openTileManagement: () -> Unit,
     renameCity: (String) -> Unit,
     previewTime: LocalDateTime? = null,
-) {
+    openAbout: () -> Unit,
+
+    ) {
     val listState = rememberScalingLazyListState(initialCenterItemIndex = 0)
     val state by viewModel.state.collectAsState()
     var showRenameDialog by remember { mutableStateOf(false) }
-
     val itemsModifier = Modifier.padding(horizontal = 10.dp)
+
+
+
+
 
     MainView(listState) {
         ScalingLazyColumnWithRSB(
@@ -430,6 +449,19 @@ fun MainSettingsView(
 
                     Text(colorName)
                 }, onClick = openColorSelection, colors = themedChipColors { state.colorScheme }, icon = {
+                    Icon(
+                        imageVector = ImageVector.vectorResource(R.drawable.ic_palette), contentDescription = "Color"
+                    )
+                })
+            }
+            item("backgroundImage") {
+                Chip(modifier = itemsModifier.fillMaxWidth(), label = { Text("Wallpaper") }, secondaryLabel = {
+                   val backgroundImage = state.backgroundImageUri;
+                    if(backgroundImage == null){
+                        Text("NOT SET")
+                    }
+
+                }, onClick = openFilePicker, colors = themedChipColors { state.colorScheme }, icon = {
                     Icon(
                         imageVector = ImageVector.vectorResource(R.drawable.ic_palette), contentDescription = "Color"
                     )
@@ -976,7 +1008,8 @@ fun previewViewModel(context: Context): TileSettingsViewModel {
         setState(
             TileSettingsState(
                 cityName = "Awa'atlu, Pandora", colorScheme = ColorScheme.Default, time24h = false,
-                timezoneId = "Asia/Manila"
+                timezoneId = "Asia/Manila",
+                backgroundImageUri ="/sdcard/DCIM/brigitta-schneiter-ZlZlx5SZcCs-unsplash.jpg"
             )
         )
     }
@@ -992,7 +1025,7 @@ fun MainSettingsPreviewBase(previewTime: LocalDateTime? = null) {
         viewModel.setState(state.copy(time24h = it))
     }, {}, {}, {}, {}, {
         viewModel.setState(state.copy(cityName = it))
-    }, previewTime)
+    }, previewTime,{})
 }
 
 @Preview(device = WearDevices.SMALL_ROUND, showSystemUi = true)

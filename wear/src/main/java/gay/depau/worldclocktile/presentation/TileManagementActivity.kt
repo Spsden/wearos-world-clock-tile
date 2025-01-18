@@ -300,7 +300,7 @@ fun TileManagementViewPreview() {
                     0 to TileSettingsState.Empty,
                     1 to TileSettingsState(
                         cityName = "New York, NY, USA", timezoneId = "America/New_York",
-                        colorScheme = ColorScheme.ALMOND, time24h = true
+                        colorScheme = ColorScheme.ALMOND, time24h = true, backgroundImageUri = "/sdcard/DCIM/brigitta-schneiter-ZlZlx5SZcCs-unsplash.jpg"
                     ),
                     2 to TileSettingsState.Empty,
                     3 to TileSettingsState.Empty,

@@ -5,6 +5,9 @@ package gay.depau.worldclocktile
 
 import android.content.Context
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.wear.protolayout.ActionBuilders.AndroidActivity
@@ -13,11 +16,14 @@ import androidx.wear.protolayout.ColorBuilders
 import androidx.wear.protolayout.DimensionBuilders
 import androidx.wear.protolayout.DimensionBuilders.dp
 import androidx.wear.protolayout.DimensionBuilders.sp
+import androidx.wear.protolayout.LayoutElementBuilders
 import androidx.wear.protolayout.LayoutElementBuilders.Box
+import androidx.wear.protolayout.LayoutElementBuilders.CONTENT_SCALE_MODE_CROP
 import androidx.wear.protolayout.LayoutElementBuilders.Column
 import androidx.wear.protolayout.LayoutElementBuilders.FONT_WEIGHT_BOLD
 import androidx.wear.protolayout.LayoutElementBuilders.FontStyle
 import androidx.wear.protolayout.LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER
+import androidx.wear.protolayout.LayoutElementBuilders.Image
 import androidx.wear.protolayout.LayoutElementBuilders.Layout
 import androidx.wear.protolayout.LayoutElementBuilders.SpanText
 import androidx.wear.protolayout.LayoutElementBuilders.Spannable
@@ -29,12 +35,15 @@ import androidx.wear.protolayout.ModifiersBuilders.Clickable
 import androidx.wear.protolayout.ModifiersBuilders.Modifiers
 import androidx.wear.protolayout.ModifiersBuilders.Padding
 import androidx.wear.protolayout.ResourceBuilders
+import androidx.wear.protolayout.ResourceBuilders.ImageResource
+import androidx.wear.protolayout.ResourceBuilders.Resources
 import androidx.wear.protolayout.TimelineBuilders.TimeInterval
 import androidx.wear.protolayout.TimelineBuilders.Timeline
 import androidx.wear.protolayout.TimelineBuilders.TimelineEntry
 import androidx.wear.tiles.RequestBuilders
 import androidx.wear.tiles.RequestBuilders.ResourcesRequest
 import androidx.wear.tiles.TileBuilders.Tile
+import androidx.wear.tiles.tooling.preview.TilePreviewData
 import androidx.wear.tooling.preview.devices.WearDevices
 import com.google.android.horologist.annotations.ExperimentalHorologistApi
 import com.google.android.horologist.tiles.SuspendingTileService
@@ -48,6 +57,10 @@ import gay.depau.worldclocktile.shared.utils.getComponentEnabled
 import gay.depau.worldclocktile.shared.utils.setComponentEnabled
 import gay.depau.worldclocktile.shared.utils.timezoneOffsetDescription
 import gay.depau.worldclocktile.utils.getColorProp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.nio.ByteBuffer
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.util.TimeZone
@@ -55,6 +68,7 @@ import java.util.TimeZone
 
 private const val RESOURCES_VERSION = "1"
 private const val PRERENDER_MINUTES = 60
+private const val TEST_IMAGE_ID = "9907"
 
 // Feel free to empty this map if you really want to see the time in these countries.
 // This is a protest against the human rights violations in these countries.
@@ -72,6 +86,7 @@ fun Context.timeLayout(
     view24h: Boolean,
     colorScheme: ColorScheme,
     hostileText: String? = null,
+    backgroundImageUri: String? = null
 ): Box.Builder {
     val amPmString = if (time == null) " __" else if (time.hour < 12) " AM" else " PM"
     val timeString = if (view24h) time?.format(DateTimeFormatter.ofPattern("H:mm")) ?: "__:__"
@@ -92,6 +107,7 @@ fun Context.timeLayout(
         .setVerticalAlignment(VERTICAL_ALIGN_CENTER)
         .setWidth(DimensionBuilders.expand())
         .setHeight(DimensionBuilders.expand())
+
         .addContent(
             Column
                 .Builder()
@@ -132,7 +148,8 @@ fun Context.timeLayout(
                                 Padding.Builder().setAll(dp(8F)).build()
                             ).build()
                         ).setFontStyle(
-                            FontStyle.Builder().setColor(colorScheme.getColorProp(this)).setSize(sp(24f)).build()
+                            FontStyle.Builder().setColor(colorScheme.getColorProp(this))
+                                .setSize(sp(24f)).build()
                         ).build()
                     }
                 )
@@ -143,6 +160,26 @@ fun Context.timeLayout(
                 )
                 .build()
         )
+        .apply {
+            if (backgroundImageUri != null) {
+                addContent(
+                    Image.Builder()
+                        .setResourceId(backgroundImageUri)
+                        .setWidth(DimensionBuilders.expand())
+                        .setHeight(DimensionBuilders.expand())
+                        .setContentScaleMode(CONTENT_SCALE_MODE_CROP)
+//                        .setColorFilter(
+//                            LayoutElementBuilders.ColorFilter.Builder()
+//                                .setTint(ColorBuilders.argb(5))  // Semi-transparent black tint
+//                                .build()
+//                        )
+                        .build()
+                )
+
+            }
+
+
+        }
 }
 
 
@@ -187,9 +224,16 @@ abstract class WorldClockTileService(private val tileId: Int) : SuspendingTileSe
                     TimelineEntry.Builder().setLayout(
                         Layout.Builder().setRoot(
                             timeLayout(
-                                locationName, null, timezoneOffsetDescription(
-                                    mSettings.timezoneId ?: TimeZone.getDefault().id, hostile = hostileText != null
-                                ), mSettings.time24h, mSettings.colorScheme, hostileText = hostileText
+                                locationName,
+                                null,
+                                timezoneOffsetDescription(
+                                    mSettings.timezoneId ?: TimeZone.getDefault().id,
+                                    hostile = hostileText != null
+                                ),
+                                mSettings.time24h,
+                                mSettings.colorScheme,
+                                hostileText = hostileText,
+                                backgroundImageUri = TEST_IMAGE_ID
                             ).setModifiers(modifiers).build()
                         ).build()
                     ).build()
@@ -200,12 +244,19 @@ abstract class WorldClockTileService(private val tileId: Int) : SuspendingTileSe
                             hostile = hostileText != null
                         )
 
+
                         addTimelineEntry(
                             TimelineEntry.Builder().setLayout(
                                 Layout.Builder().setRoot(
                                     timeLayout(
-                                        locationName, localTimeAtLocation.plusMinutes(i.toLong()).toLocalTime(), offset,
-                                        mSettings.time24h, mSettings.colorScheme, hostileText = hostileText
+                                        locationName,
+                                        localTimeAtLocation.plusMinutes(i.toLong()).toLocalTime(),
+                                        offset,
+                                        mSettings.time24h,
+                                        mSettings.colorScheme,
+                                        hostileText = hostileText,
+                                                backgroundImageUri = TEST_IMAGE_ID
+
                                     ).setModifiers(modifiers).build()
                                 ).build()
                             ).setValidity(
@@ -223,8 +274,82 @@ abstract class WorldClockTileService(private val tileId: Int) : SuspendingTileSe
             .build()
     }
 
-    override suspend fun resourcesRequest(requestParams: ResourcesRequest): ResourceBuilders.Resources =
-        ResourceBuilders.Resources.Builder().setVersion(RESOURCES_VERSION).build()
+
+
+//    override suspend fun resourcesRequest(requestParams: ResourcesRequest): ResourceBuilders.Resources =
+//        ResourceBuilders.Resources.Builder().setVersion(RESOURCES_VERSION).build()
+
+    override suspend fun resourcesRequest(requestParams: ResourcesRequest): ResourceBuilders.Resources {
+        val resourceIds = requestParams.resourceIds// Update with your actual URI
+        val imagesToFetch = mutableMapOf<String, Bitmap>()
+
+        if (resourceIds.isNotEmpty()) {
+            val imageUri = "/sdcard/DCIM/brigitta-schneiter-ZlZlx5SZcCs-unsplash.jpg"
+            //resourceIds.first()
+            val bitmapImage = fetchImageFromLocalUri(Uri.parse(imageUri), this)
+            bitmapImage?.let {
+                imagesToFetch[resourceIds[1]] = it
+            }
+        }
+        return Resources.Builder()
+            .setVersion(RESOURCES_VERSION)
+            .apply {
+                imagesToFetch.forEach { (resourceId, bitmap) ->
+                    addIdToImageMapping(TEST_IMAGE_ID, bitmap)
+                }
+            }.build()
+    }
+
+    private suspend fun fetchImageFromLocalUri(uri: Uri, context: Context): Bitmap? {
+        return withContext(Dispatchers.IO) { // Move the file loading to a background thread
+            try {
+                // Check if the URI points to a file
+                val file = File(uri.path ?: return@withContext null)
+
+                // If it's a valid file path, decode the bitmap from the file
+                if (file.exists() && file.isFile) {
+                    BitmapFactory.decodeFile(file.absolutePath)
+                } else {
+                    null
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                null
+            }
+        }
+    }
+
+    fun Resources.Builder.addIdToImageMapping(
+        id: String,
+        bitmap: Bitmap
+    ): Resources.Builder = addIdToImageMapping(
+        id, bitmapToImageResource(bitmap)
+    )
+
+    private fun bitmapToImageResource(bitmap: Bitmap): ImageResource {
+        // TODO check if needed
+        val safeBitmap = bitmap.toRgb565()
+
+        val byteBuffer = ByteBuffer.allocate(safeBitmap.byteCount)
+        safeBitmap.copyPixelsToBuffer(byteBuffer)
+        val bytes: ByteArray = byteBuffer.array()
+
+        return ImageResource.Builder().setInlineResource(
+            ResourceBuilders.InlineImageResource.Builder()
+                .setData(bytes)
+                .setWidthPx(bitmap.width)
+                .setHeightPx(bitmap.height)
+                .setFormat(ResourceBuilders.IMAGE_FORMAT_RGB_565)
+                .build()
+        )
+            .build()
+    }
+
+    private fun Bitmap.toRgb565(): Bitmap {
+        // TODO avoid copy
+        return this.copy(Bitmap.Config.RGB_565, false)
+    }
+
 
 
     companion object {
@@ -484,6 +609,7 @@ fun TimeInIranPreview() {
     }
 }
 
+
 @Preview(
     name = "Time Layout",
     device = WearDevices.SMALL_ROUND,
@@ -499,4 +625,68 @@ fun TimeLayoutPreview() {
             "Awa'atlu, Pandora", LocalTime.of(16, 20), "+7 Tomorrow", false, ColorScheme.Default
         ).build()
     }
+}
+
+private suspend fun previewResources() = Resources.Builder()
+    .addIdToImageMapping("test",
+        fetchImageFromLocalUri(Uri.parse("/sdcard/DCIM/brigitta-schneiter-ZlZlx5SZcCs-unsplash.jpg"))
+            ?.let { bitmapToImageResource(it) }
+            ?: throw IllegalArgumentException("Image not found or could not be loaded")
+    )
+    .build()
+
+
+//@androidx.wear.tiles.tooling.preview.Preview
+//fun testSurajTiles(context: Context): TilePreviewData {
+//    return TilePreviewData({ previewResources() }) { request ->
+//        MessagingTileRenderer(context).renderTimeline(
+//            MessagingTileState(knownContacts),
+//            request
+//        )
+//    }
+//}
+
+
+
+private fun bitmapToImageResource(bitmap: Bitmap): ImageResource {
+    // TODO check if needed
+    val safeBitmap = bitmap.toRgb565()
+
+    val byteBuffer = ByteBuffer.allocate(safeBitmap.byteCount)
+    safeBitmap.copyPixelsToBuffer(byteBuffer)
+    val bytes: ByteArray = byteBuffer.array()
+
+    return ImageResource.Builder().setInlineResource(
+        ResourceBuilders.InlineImageResource.Builder()
+            .setData(bytes)
+            .setWidthPx(bitmap.width)
+            .setHeightPx(bitmap.height)
+            .setFormat(ResourceBuilders.IMAGE_FORMAT_RGB_565)
+            .build()
+    )
+        .build()
+}
+
+private suspend fun fetchImageFromLocalUri(uri: Uri): Bitmap? {
+    return withContext(Dispatchers.IO) { // Move the file loading to a background thread
+        try {
+            // Check if the URI points to a file
+            val file = File(uri.path ?: return@withContext null)
+
+            // If it's a valid file path, decode the bitmap from the file
+            if (file.exists() && file.isFile) {
+                BitmapFactory.decodeFile(file.absolutePath)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+}
+
+private fun Bitmap.toRgb565(): Bitmap {
+    // TODO avoid copy
+    return this.copy(Bitmap.Config.RGB_565, false)
 }

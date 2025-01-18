@@ -208,6 +208,7 @@ class MainActivity : ComponentActivity() {
                         setTileColor = { tileId, colorScheme ->
                             mSettings[tileId]!!.colorScheme = colorScheme
                         },
+                        ///TODO :SURAJ
                         setTile24h = { tileId, time24h ->
                             mSettings[tileId]!!.time24h = time24h
                         },
@@ -813,21 +814,24 @@ private fun previewViewModel(): TileManagementViewModel {
                         cityName = "New York",
                         time24h = false,
                         listOrder = 0,
-                        colorScheme = ColorScheme.Default
+                        colorScheme = ColorScheme.Default,
+                        backgroundImageUri = "9907"
                     ),
                     3 to TileSettingsState(
                         timezoneId = "Europe/Rome",
                         cityName = "Los Angeles",
                         time24h = true,
                         listOrder = 1,
-                        colorScheme = ColorScheme.BUBBLE_GUM
+                        colorScheme = ColorScheme.BUBBLE_GUM,
+                        "9907"
                     ),
                     5 to TileSettingsState(
                         timezoneId = "Asia/Tokyo",
                         cityName = "Tokyo",
                         time24h = true,
                         listOrder = 2,
-                        colorScheme = ColorScheme.AMETHYST
+                        colorScheme = ColorScheme.AMETHYST,
+                        "9907"
                     ),
                 ),
                 canAddRemoveTiles = true
@@ -867,7 +871,9 @@ fun MainViewPreview() {
                                 cityName = null,
                                 time24h = false,
                                 listOrder = viewModel.state.value.tileSettings.size,
-                                colorScheme = ColorScheme.Default
+                                colorScheme = ColorScheme.Default,
+                                backgroundImageUri = "9907"
+
                             ))
                         )
                     )

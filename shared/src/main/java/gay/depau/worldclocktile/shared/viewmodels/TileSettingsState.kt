@@ -8,6 +8,7 @@ data class TileSettingsState(
     val time24h: Boolean,
     val listOrder: Int = 0,
     val colorScheme: ColorScheme,
+    val backgroundImageUri : String?,
     val selectedContinent: String = "",
     val selectedCountry: String = "",
     val selectedProvince: String = "",
@@ -15,6 +16,6 @@ data class TileSettingsState(
 ) {
     companion object {
         val Empty: TileSettingsState
-            get() = TileSettingsState(null, null, false, 0, ColorScheme.Default)
+            get() = TileSettingsState(null, null, false, 0, ColorScheme.Default,null)
     }
 }

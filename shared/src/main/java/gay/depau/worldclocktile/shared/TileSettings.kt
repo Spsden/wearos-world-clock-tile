@@ -34,6 +34,7 @@ class TileSettings(private val context: Context, val tileId: Int? = null) : Sett
     var time24h: Boolean by settings.delegate("tile${tileId}_time24h", false)
     var colorScheme: ColorScheme by settings.delegate("tile${tileId}_colorScheme", ColorScheme.Default)
     var listOrder: Int by settings.delegate("tile${tileId}_listOrder", 0)
+    var backgroundImageUri : String? by settings.delegate("tile${tileId}_backgroundImageUri", null);
 
     fun addListener(listener: SettingChangeListener) {
         listeners.add(listener)
@@ -52,6 +53,7 @@ class TileSettings(private val context: Context, val tileId: Int? = null) : Sett
         cityName = cityName
         time24h = time24h
         colorScheme = colorScheme
+        backgroundImageUri = backgroundImageUri
 
         if (!isEnabled)
             listOrder = numEnabledTiles(context)
@@ -65,6 +67,7 @@ class TileSettings(private val context: Context, val tileId: Int? = null) : Sett
             remove("tile${tileId}_time24h")
             remove("tile${tileId}_colorScheme")
             remove("tile${tileId}_listOrder")
+            remove("tile${tileId}_backgroundImageUri")
             apply()
             notifyListeners()
         }

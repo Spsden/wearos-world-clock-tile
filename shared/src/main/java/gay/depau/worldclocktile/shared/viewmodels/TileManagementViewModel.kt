@@ -30,7 +30,7 @@ class TileManagementViewModel : ViewModel(), gay.depau.worldclocktile.shared.Set
         _state.update {
             it.copy(
                 tileSettings = it.tileSettings + (tileId to TileSettingsState(
-                    settings.timezoneId, settings.cityName, settings.time24h, settings.listOrder, settings.colorScheme
+                    settings.timezoneId, settings.cityName, settings.time24h, settings.listOrder, settings.colorScheme, settings.backgroundImageUri
                 )),
                 enabledTileIds = if (settings.isEnabled) (it.enabledTileIds + tileId).distinct()
                 else it.enabledTileIds - tileId

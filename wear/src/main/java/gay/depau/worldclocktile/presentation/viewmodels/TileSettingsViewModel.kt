@@ -118,6 +118,7 @@ class TileSettingsViewModel(
                 time24h = settings.time24h,
                 colorScheme = settings.colorScheme,
                 listOrder = settings.listOrder,
+                backgroundImageUri = settings.backgroundImageUri
             )
         }
     }
